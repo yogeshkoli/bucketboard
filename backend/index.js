@@ -22,6 +22,6 @@ app.get('/api/files', async (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log('Backend API running on http://localhost:5000');
+app.listen(5002, () => {
+  console.log('Backend API running on http://localhost:5002');
 });
