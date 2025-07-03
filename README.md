@@ -2,7 +2,7 @@
 
 **BucketBoard** is a modern, open-source web application for managing AWS S3 buckets through a clean, drag-and-drop UI — no AWS Console or CLI required.
 
-![screenshot](docs/screenshot.png) <!-- Optional -->
+![BucketBoard](./docs/images/BucketBoard.png) 
 
 ---
 
