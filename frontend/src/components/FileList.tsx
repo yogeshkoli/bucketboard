@@ -34,10 +34,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 import { Folder, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2, Download, Loader2 } from "lucide-react";
-import { formatBytes, getFileIcon } from "@/lib/utils";
+import { formatBytes, getFileIcon, isImage, isPDF } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
-import { RenameDialog } from "./RenameDialog";
-import { ShareDialog } from "./ShareDialog";
+import { RenameDialog } from "@/components/RenameDialog";
+import { ShareDialog } from "@/components/ShareDialog";
 
 // --- Type Definitions ---
 export interface FileItem {
@@ -260,11 +260,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         // In a real app, you'd show a toast notification here
       }
     }
-  };
-
-  const isImage = (fileName: string) => /\.(jpe?g|png|gif|svg|webp)$/i.test(fileName);
-  const isPDF = (fileName: string) => /\.pdf$/i.test(fileName);
-
+  }; 
 
   if (!items || (items.folders.length === 0 && items.files.length === 0 && !currentPrefix)) {
     return (

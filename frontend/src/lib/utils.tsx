@@ -49,3 +49,6 @@ export const getFileIcon = (fileName: string, props?: LucideProps): React.ReactE
       return <File {...finalProps} />;
   }
 };
+
+export const isImage = (fileName: string) => /\.(jpe?g|png|gif|svg|webp)$/i.test(fileName);
+export const isPDF = (fileName: string) => /\.pdf$/i.test(fileName);

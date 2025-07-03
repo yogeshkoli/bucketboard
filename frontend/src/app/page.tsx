@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FileList, type FileListData } from '@/components/FileList';
+import { FileList, type FileListData, type FileItem } from '@/components/FileList';
 import { UploadDialog } from '@/components/UploadDialog';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Logo } from '@/components/Logo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 import { PropertiesPanel } from '@/components/PropertiesPanel';
-import { FileItem } from '@/components/FileList';
 
 const FileListSkeleton = () => (
   <div className="p-4 space-y-4">
@@ -148,13 +148,16 @@ export default function HomePage() {
   };
 
   return (
-    <main className="container mx-auto p-4">
-      <div className="flex h-[calc(100vh-2rem)]">
+    <main className="container mx-auto p-4 h-screen flex flex-col">
+      <div className="flex flex-1 overflow-hidden">
         <div className="border rounded-lg flex-1 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b">
-            <div>
-              <h1 className="text-xl font-semibold mb-2">BucketBoard</h1>
-              <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
+            <div className="flex items-center gap-3">
+              <Logo />
+              <div>
+                <h1 className="text-xl font-semibold mb-1">BucketBoard</h1>
+                <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Button asChild variant="outline" size="icon">
@@ -226,4 +229,3 @@ export default function HomePage() {
     </main>
   );
 }
-

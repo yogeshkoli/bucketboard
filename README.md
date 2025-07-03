@@ -4,6 +4,8 @@
 
 ![BucketBoard](./docs/images/BucketBoard.png) 
 
+![Storage Analytics](./docs/images/StorageAnalytics.png) 
+
 ---
 
 ## 🚀 Features
