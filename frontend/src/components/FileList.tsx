@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-import { File, Folder, FileArchive, FileImage, FileText, FileVideo, FileAudio, FileCode, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2 } from "lucide-react";
+import { Folder, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2 } from "lucide-react";
+import { formatBytes, getFileIcon } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { RenameDialog } from "./RenameDialog";
 import { ShareDialog } from "./ShareDialog";
@@ -44,6 +45,7 @@ export interface FileItem {
   name: string;
   lastModified: string;
   size: number;
+  storageClass?: string;
 }
 
 export interface FolderItem {
@@ -62,49 +64,11 @@ interface FileListProps {
   onNavigateUp: () => void;
   currentPrefix: string;
   onActionSuccess: () => void;
+  onFileSelect: (file: FileItem | null) => void;
+  selectedFileKey: string | null;
 }
 
-// Helper to format bytes into a readable string
-const formatBytes = (bytes: number, decimals: number = 2): string => {
-  if (!+bytes) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-};
-
-// Helper to get an icon based on file extension
-const getFileIcon = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-    case 'png':
-    case 'gif':
-    case 'svg':
-      return <FileImage className="h-5 w-5 text-muted-foreground" />;
-    case 'pdf':
-      return <FileText className="h-5 w-5 text-muted-foreground" />;
-    case 'zip':
-    case 'rar':
-    case '7z':
-      return <FileArchive className="h-5 w-5 text-muted-foreground" />;
-    case 'mp4':
-    case 'mov':
-    case 'avi':
-      return <FileVideo className="h-5 w-5 text-muted-foreground" />;
-    case 'mp3':
-    case 'wav':
-      return <FileAudio className="h-5 w-5 text-muted-foreground" />;
-    case 'js': case 'jsx': case 'ts': case 'tsx': case 'html': case 'css':
-      return <FileCode className="h-5 w-5 text-muted-foreground" />;
-    default:
-      return <File className="h-5 w-5 text-muted-foreground" />;
-  }
-};
-
-export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, onActionSuccess }: FileListProps) {
+export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, onActionSuccess, onFileSelect, selectedFileKey }: FileListProps) {
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [itemToRename, setItemToRename] = useState<FileItem | FolderItem | null>(null);
@@ -287,7 +251,17 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
             <FolderRow key={folder.prefix} folder={folder} onFolderClick={onFolderClick} onRename={() => setItemToRename(folder)} />
           ))}
           {items.files.map((file) => (
-            <FileRow key={file.key} file={file} isSelected={selectedKeys.has(file.key)} onSelectRow={handleSelectRow} onPreview={handlePreview} onRename={() => setItemToRename(file)} onShare={() => setFileToShare(file)} onDelete={() => setFileToDelete(file)} />
+            <FileRow
+              key={file.key}
+              file={file}
+              isSelectedForBulk={selectedKeys.has(file.key)}
+              isSelectedForProperties={selectedFileKey === file.key}
+              onSelectRow={handleSelectRow}
+              onFileSelect={onFileSelect}
+              onPreview={handlePreview}
+              onRename={() => setItemToRename(file)}
+              onShare={() => setFileToShare(file)}
+              onDelete={() => setFileToDelete(file)} />
           ))}
         </TableBody>
       </Table>
@@ -384,7 +358,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
 
 // --- Draggable and Droppable Row Components ---
 
-function FileRow({ file, isSelected, onSelectRow, onPreview, onRename, onShare, onDelete }: { file: FileItem, isSelected: boolean, onSelectRow: (key: string, checked: boolean) => void, onPreview: (file: FileItem) => void, onRename: () => void, onShare: () => void, onDelete: () => void }) {
+function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow, onFileSelect, onPreview, onRename, onShare, onDelete }: { file: FileItem, isSelectedForBulk: boolean, isSelectedForProperties: boolean, onSelectRow: (key: string, checked: boolean) => void, onFileSelect: (file: FileItem | null) => void, onPreview: (file: FileItem) => void, onRename: () => void, onShare: () => void, onDelete: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: file.key,
   });
@@ -395,9 +369,9 @@ function FileRow({ file, isSelected, onSelectRow, onPreview, onRename, onShare, 
   } : undefined;
 
   return (
-    <TableRow ref={setNodeRef} style={style} {...attributes} data-state={isSelected && 'selected'}>
+    <TableRow ref={setNodeRef} style={style} {...attributes} data-state={isSelectedForProperties ? 'active' : isSelectedForBulk ? 'selected' : undefined} onClick={() => onFileSelect(file)}>
       <TableCell className="pl-4">
-        <Checkbox checked={isSelected} onCheckedChange={(checked) => onSelectRow(file.key, !!checked)} />
+        <Checkbox checked={isSelectedForBulk} onCheckedChange={(checked) => onSelectRow(file.key, !!checked)} />
       </TableCell>
       <TableCell>{getFileIcon(file.name)}</TableCell>
       <TableCell {...listeners} className="cursor-grab">{file.name}</TableCell>

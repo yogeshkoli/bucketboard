@@ -20,6 +20,9 @@ import { Terminal, Search, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
+import { PropertiesPanel } from '@/components/PropertiesPanel';
+import { FileItem } from '@/components/FileList';
+
 const FileListSkeleton = () => (
   <div className="p-4 space-y-4">
     <div className="grid grid-cols-[60px_40px_1fr_150px_120px_50px] items-center gap-4">
@@ -56,6 +59,7 @@ export default function HomePage() {
   const [prefix, setPrefix] = useState(''); // To manage the current "folder"
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -133,80 +137,93 @@ export default function HomePage() {
 
   const handleFolderClick = (newPrefix: string) => {
     setPrefix(newPrefix);
+    setSelectedFile(null);
   };
 
   const handleNavigateUp = () => {
-    // Find the last '/' and slice the string up to that point
-    // e.g., 'folder1/folder2/' -> 'folder1/'
-    // e.g., 'folder1/' -> ''
     const lastSlashIndex = prefix.slice(0, -1).lastIndexOf('/');
     const newPrefix = lastSlashIndex === -1 ? '' : prefix.slice(0, lastSlashIndex + 1);
     setPrefix(newPrefix);
+    setSelectedFile(null);
   };
 
   return (
     <main className="container mx-auto p-4">
-      <div className="border rounded-lg">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <h1 className="text-xl font-semibold mb-2">BucketBoard</h1>
-            <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
-          </div>
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="icon">
-              <Link href="/dashboard"><BarChart2 className="h-4 w-4" /></Link>
-            </Button>
-            <CreateFolderDialog currentPrefix={prefix} onSuccess={fetchFiles} />
-            <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
-            <ThemeToggle />
-          </div>
-        </div>
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+      <div className="flex h-[calc(100vh-2rem)]">
+        <div className="border rounded-lg flex-1 flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b">
+            <div>
+              <h1 className="text-xl font-semibold mb-2">BucketBoard</h1>
+              <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
             </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="images">Images</SelectItem>
-                <SelectItem value="documents">Documents</SelectItem>
-                <SelectItem value="videos">Videos</SelectItem>
-                <SelectItem value="audio">Audio</SelectItem>
-                <SelectItem value="archives">Archives</SelectItem>
-                <SelectItem value="code">Code</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-3">
+              <Button asChild variant="outline" size="icon">
+                <Link href="/dashboard"><BarChart2 className="h-4 w-4" /></Link>
+              </Button>
+              <CreateFolderDialog currentPrefix={prefix} onSuccess={fetchFiles} />
+              <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
+              <ThemeToggle />
+            </div>
+          </div>
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="images">Images</SelectItem>
+                  <SelectItem value="documents">Documents</SelectItem>
+                  <SelectItem value="videos">Videos</SelectItem>
+                  <SelectItem value="audio">Audio</SelectItem>
+                  <SelectItem value="archives">Archives</SelectItem>
+                  <SelectItem value="code">Code</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {loading && <FileListSkeleton />}
+            {error && (
+              <Alert variant="destructive" className="m-4">
+                <Terminal className="h-4 w-4" />
+                <AlertTitle>Error Fetching Files</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {filteredData && (
+              <FileList
+                items={filteredData}
+                onFolderClick={handleFolderClick}
+                onNavigateUp={handleNavigateUp}
+                currentPrefix={prefix}
+                onActionSuccess={fetchFiles}
+                onFileSelect={setSelectedFile}
+                selectedFileKey={selectedFile?.key || null}
+              />
+            )}
           </div>
         </div>
-        {loading && <FileListSkeleton />}
-        {error && (
-          <Alert variant="destructive" className="m-4">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Error Fetching Files</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {filteredData && (
-          <FileList
-            items={filteredData}
-            onFolderClick={handleFolderClick}
-            onNavigateUp={handleNavigateUp}
-            currentPrefix={prefix}
-            onActionSuccess={fetchFiles}
+        {selectedFile && 
+          <PropertiesPanel 
+            file={selectedFile} 
+            onClose={() => setSelectedFile(null)} 
+            onActionSuccess={fetchFiles} 
           />
-        )}
+        }
       </div>
     </main>
   );
 }
+

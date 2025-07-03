@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { File, FileArchive, FileAudio, FileCode, FileImage, FileText, FileVideo } from "lucide-react";
+import { File, FileArchive, FileAudio, FileCode, FileImage, FileText, FileVideo, type LucideProps } from "lucide-react";
 import React from "react";
 
 export function cn(...inputs: ClassValue[]) {
@@ -18,7 +18,9 @@ export const formatBytes = (bytes: number, decimals: number = 2): string => {
 };
 
 // Helper to get an icon based on file extension
-export const getFileIcon = (fileName: string): React.ReactElement => {
+export const getFileIcon = (fileName: string, props?: LucideProps): React.ReactElement => {
+  const defaultClassName = "h-5 w-5 text-muted-foreground";
+  const finalProps = { ...props, className: cn(defaultClassName, props?.className) };
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
     case 'jpg':
@@ -27,23 +29,23 @@ export const getFileIcon = (fileName: string): React.ReactElement => {
     case 'gif':
     case 'svg':
     case 'webp':
-      return <FileImage className="h-5 w-5 text-muted-foreground" />;
+      return <FileImage {...finalProps} />;
     case 'pdf':
-      return <FileText className="h-5 w-5 text-muted-foreground" />;
+      return <FileText {...finalProps} />;
     case 'zip':
     case 'rar':
     case '7z':
-      return <FileArchive className="h-5 w-5 text-muted-foreground" />;
+      return <FileArchive {...finalProps} />;
     case 'mp4':
     case 'mov':
     case 'avi':
-      return <FileVideo className="h-5 w-5 text-muted-foreground" />;
+      return <FileVideo {...finalProps} />;
     case 'mp3':
     case 'wav':
-      return <FileAudio className="h-5 w-5 text-muted-foreground" />;
+      return <FileAudio {...finalProps} />;
     case 'js': case 'jsx': case 'ts': case 'tsx': case 'html': case 'css':
-      return <FileCode className="h-5 w-5 text-muted-foreground" />;
+      return <FileCode {...finalProps} />;
     default:
-      return <File className="h-5 w-5 text-muted-foreground" />;
+      return <File {...finalProps} />;
   }
 };

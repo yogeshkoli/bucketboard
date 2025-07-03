@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, DeleteObjectsCommand, GetObjectTaggingCommand, PutObjectTaggingCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // --- Environment Variable Setup ---
@@ -372,6 +372,53 @@ app.get('/api/analytics', async (req, res) => {
     }
 });
 
+
+app.get('/api/files/metadata', async (req, res) => {
+    const { key } = req.query;
+
+    if (!key) {
+        return res.status(400).json({ error: 'File key is required.' });
+    }
+
+    try {
+        const command = new GetObjectTaggingCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: key,
+        });
+        const response = await s3Client.send(command);
+        res.json(response.TagSet);
+    } catch (err) {
+        if (err.name === 'NoSuchKey') {
+            return res.json([]); // No tags yet, return empty array
+        }
+        console.error('Error fetching tags:', err);
+        res.status(500).json({ error: 'Failed to fetch file metadata', details: err.message });
+    }
+});
+
+// API Endpoint to update file metadata (tags)
+app.post('/api/files/metadata', async (req, res) => {
+    const { key, tags } = req.body;
+
+    if (!key || !tags) {
+        return res.status(400).json({ error: 'File key and tags are required.' });
+    }
+
+    try {
+        const command = new PutObjectTaggingCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: key,
+            Tagging: {
+                TagSet: tags,
+            },
+        });
+        await s3Client.send(command);
+        res.status(200).json({ message: 'Metadata updated successfully.' });
+    } catch (err) {
+        console.error('Error updating tags:', err);
+        res.status(500).json({ error: 'Failed to update file metadata', details: err.message });
+    }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
