@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { FileList, type FileListData, type FileItem } from '@/components/FileList';
 import { UploadDialog } from '@/components/UploadDialog';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/Logo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -52,14 +53,63 @@ const FileListSkeleton = () => (
   </div>
 );
 
-export default function HomePage() {
+const PageSkeleton = () => (
+  <main className="container mx-auto p-4 h-screen flex flex-col">
+    <div className="flex flex-1 overflow-hidden">
+      <div className="border rounded-lg flex-1 flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-12 rounded-lg" />
+            <div>
+              <Skeleton className="h-6 w-32 mb-2" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-36" />
+            <Skeleton className="h-10 w-36" />
+            <Skeleton className="h-10 w-10" />
+          </div>
+        </div>
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-10 flex-1" />
+            <Skeleton className="h-10 w-[180px]" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <FileListSkeleton />
+        </div>
+      </div>
+    </div>
+  </main>
+);
+
+function BucketBrowser() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [data, setData] = useState<FileListData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [prefix, setPrefix] = useState(''); // To manage the current "folder"
+  const [prefix, setPrefix] = useState(() => searchParams.get('prefix') || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+
+  // This effect syncs the prefix state to the URL query parameters.
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (prefix) {
+      params.set('prefix', prefix);
+    } else {
+      params.delete('prefix');
+    }
+    // Use router.replace to update the URL without adding to browser history
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [prefix, pathname, router, searchParams]);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -148,7 +198,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="container mx-auto p-4 h-screen flex flex-col">
+    <div className="container mx-auto p-4 h-screen flex flex-col">
       <div className="flex flex-1 overflow-hidden">
         <div className="border rounded-lg flex-1 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b">
@@ -226,6 +276,15 @@ export default function HomePage() {
           />
         }
       </div>
-    </main>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    // Wrapping the component that uses searchParams in a Suspense boundary
+    <Suspense fallback={<PageSkeleton />}>
+      <BucketBrowser />
+    </Suspense>
   );
 }
