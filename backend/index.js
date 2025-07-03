@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // --- Environment Variable Setup ---
 // Because the .env file is in the root folder, one level above /backend,
@@ -79,6 +80,32 @@ app.get('/api/files', async (req, res) => {
         return res.status(404).json({ message: `Bucket not found: ${process.env.AWS_BUCKET_NAME}` });
     }
     res.status(500).json({ message: 'Failed to list bucket contents. Check backend logs and AWS credentials.' });
+  }
+});
+
+// API Endpoint to generate a pre-signed URL for uploading a file
+app.post('/api/upload/presigned-url', async (req, res) => {
+  const { fileName, fileType, prefix } = req.body;
+
+  if (!fileName || !fileType) {
+    return res.status(400).json({ error: 'fileName and fileType are required in the request body.' });
+  }
+
+  // Create the full S3 key, including the folder path (prefix)
+  const key = prefix ? `${prefix}${fileName}` : fileName;
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: key,
+    ContentType: fileType,
+  });
+
+  try {
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 }); // URL is valid for 5 minutes
+    res.json({ url: signedUrl, key: key });
+  } catch (err) {
+    console.error('Error creating pre-signed URL:', err);
+    res.status(500).json({ error: 'Failed to create pre-signed URL', details: err.message });
   }
 });
 
