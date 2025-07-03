@@ -30,8 +30,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { File, Folder, FileArchive, FileImage, FileText, FileVideo, FileAudio, FileCode, ArrowUp, MoreHorizontal, Eye, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { File, Folder, FileArchive, FileImage, FileText, FileVideo, FileAudio, FileCode, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2 } from "lucide-react";
 import { Skeleton } from "./ui/skeleton";
+import { RenameDialog } from "./RenameDialog";
+import { ShareDialog } from "./ShareDialog";
 
 // --- Type Definitions ---
 export interface FileItem {
@@ -56,7 +59,7 @@ interface FileListProps {
   onFolderClick: (prefix: string) => void;
   onNavigateUp: () => void;
   currentPrefix: string;
-  onDeleteSuccess: () => void;
+  onActionSuccess: () => void;
 }
 
 // Helper to format bytes into a readable string
@@ -99,9 +102,10 @@ const getFileIcon = (fileName: string) => {
   }
 };
 
-export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, onDeleteSuccess }: FileListProps) {
-
+export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, onActionSuccess }: FileListProps) {
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
+  const [itemToRename, setItemToRename] = useState<FileItem | FolderItem | null>(null);
+  const [fileToShare, setFileToShare] = useState<FileItem | null>(null);
   const [previewFile, setPreviewFile] = useState<{ file: FileItem, url: string } | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
@@ -118,7 +122,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
       if (!res.ok) {
         throw new Error('Failed to delete file.');
       }
-      onDeleteSuccess();
+      onActionSuccess();
     } catch (error) {
       console.error("Deletion failed:", error);
       // In a real app, you'd show a toast notification here
@@ -151,6 +155,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|svg|webp)$/i.test(fileName);
   const isPDF = (fileName: string) => /\.pdf$/i.test(fileName);
 
+
   if (!items || (items.folders.length === 0 && items.files.length === 0 && !currentPrefix)) {
     return (
       <div className="text-center py-10 text-muted-foreground">
@@ -182,12 +187,27 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
             </TableRow>
           )}
           {items.folders.map((folder) => (
-            <TableRow key={folder.prefix} onClick={() => onFolderClick(folder.prefix)} className="cursor-pointer hover:bg-muted/50">
+            <TableRow key={folder.prefix}>
               <TableCell><Folder className="h-5 w-5 text-muted-foreground" /></TableCell>
-              <TableCell className="font-medium">{folder.name}</TableCell>
+              <TableCell onClick={() => onFolderClick(folder.prefix)} className="font-medium cursor-pointer hover:underline">{folder.name}</TableCell>
               <TableCell>--</TableCell>
               <TableCell>--</TableCell>
-              <TableCell className="text-right">--</TableCell>
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Open menu</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setItemToRename(folder)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      <span>Rename</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
             </TableRow>
           ))}
           {items.files.map((file) => (
@@ -209,6 +229,14 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
                       <Eye className="mr-2 h-4 w-4" />
                       <span>Preview</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemToRename(file)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      <span>Rename</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setFileToShare(file)}>
+                      <Share2 className="mr-2 h-4 w-4" />
+                      <span>Share</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setFileToDelete(file)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                       <Trash2 className="mr-2 h-4 w-4" />
                       <span>Delete</span>
@@ -220,7 +248,6 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
           ))}
         </TableBody>
       </Table>
-
       <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -242,13 +269,13 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
           <DialogHeader>
             <DialogTitle className="truncate">{previewFile?.file.name}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="relative flex-1 flex items-center justify-center overflow-hidden">
             {isPreviewLoading ? (
               <Skeleton className="w-full h-full" />
             ) : (
               previewFile && (
                 isImage(previewFile.file.name) ? (
-                  <img src={previewFile.url} alt={previewFile.file.name} className="max-w-full max-h-full object-contain" />
+                  <Image src={previewFile.url} alt={previewFile.file.name} fill style={{ objectFit: 'contain' }} />
                 ) : isPDF(previewFile.file.name) ? (
                   <iframe src={previewFile.url} className="w-full h-full border-0" title={previewFile.file.name} />
                 ) : (
@@ -264,6 +291,16 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
           </div>
         </DialogContent>
       </Dialog>
+
+      <RenameDialog
+        item={itemToRename}
+        isOpen={!!itemToRename}
+        onOpenChange={(open) => !open && setItemToRename(null)}
+        onSuccess={onActionSuccess}
+        currentPrefix={currentPrefix}
+      />
+
+      <ShareDialog file={fileToShare} isOpen={!!fileToShare} onOpenChange={(open) => !open && setFileToShare(null)} />
     </>
   );
 }

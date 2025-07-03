@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // --- Environment Variable Setup ---
@@ -153,6 +153,71 @@ app.delete('/api/files', async (req, res) => {
   }
 });
 
+// API Endpoint to rename a file or folder
+app.post('/api/rename', async (req, res) => {
+    const { oldKey, newKey, isFolder } = req.body;
+
+    if (!oldKey || !newKey) {
+        return res.status(400).json({ error: 'oldKey and newKey are required.' });
+    }
+
+    const bucketName = process.env.AWS_BUCKET_NAME;
+
+    try {
+        if (!isFolder) {
+            // Rename a single file
+            const copyCommand = new CopyObjectCommand({
+                Bucket: bucketName,
+                CopySource: `${bucketName}/${encodeURIComponent(oldKey)}`,
+                Key: newKey,
+            });
+            await s3Client.send(copyCommand);
+
+            const deleteCommand = new DeleteObjectCommand({
+                Bucket: bucketName,
+                Key: oldKey,
+            });
+            await s3Client.send(deleteCommand);
+
+            res.status(200).json({ message: 'File renamed successfully.' });
+        } else {
+            // Rename a folder (move all objects under the prefix)
+            const listCommand = new ListObjectsV2Command({ Bucket: bucketName, Prefix: oldKey });
+            const listedObjects = await s3Client.send(listCommand);
+
+            if (!listedObjects.Contents || listedObjects.Contents.length === 0) {
+                return res.status(404).json({ error: 'Folder not found or is empty.' });
+            }
+
+            const copyPromises = listedObjects.Contents.map(item => {
+                const destinationKey = item.Key.replace(oldKey, newKey);
+                const copyCommand = new CopyObjectCommand({
+                    Bucket: bucketName,
+                    CopySource: `${bucketName}/${encodeURIComponent(item.Key)}`,
+                    Key: destinationKey,
+                });
+                return s3Client.send(copyCommand);
+            });
+
+            await Promise.all(copyPromises);
+
+            const deleteParams = {
+                Bucket: bucketName,
+                Delete: {
+                    Objects: listedObjects.Contents.map(item => ({ Key: item.Key })),
+                },
+            };
+            const deleteCommand = new DeleteObjectsCommand(deleteParams);
+            await s3Client.send(deleteCommand);
+
+            res.status(200).json({ message: 'Folder renamed successfully.' });
+        }
+    } catch (err) {
+        console.error('Error renaming item:', err);
+        res.status(500).json({ error: 'Failed to rename item', details: err.message });
+    }
+});
+
 // API Endpoint to generate a pre-signed URL for viewing/downloading a file
 app.post('/api/files/presigned-url', async (req, res) => {
     const { key } = req.body;
@@ -171,6 +236,28 @@ app.post('/api/files/presigned-url', async (req, res) => {
         res.json({ url: signedUrl });
     } catch (err) {
         console.error('Error creating pre-signed GET URL:', err);
+        res.status(500).json({ error: 'Failed to create pre-signed URL', details: err.message });
+    }
+});
+
+// API Endpoint to generate a pre-signed URL for sharing
+app.post('/api/share/presigned-url', async (req, res) => {
+    const { key, expiresIn } = req.body; // expiresIn in seconds
+
+    if (!key || !expiresIn) {
+        return res.status(400).json({ error: 'File key and expiresIn are required.' });
+    }
+
+    const command = new GetObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+    });
+
+    try {
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: parseInt(expiresIn, 10) });
+        res.json({ url: signedUrl });
+    } catch (err) {
+        console.error('Error creating pre-signed SHARE URL:', err);
         res.status(500).json({ error: 'Failed to create pre-signed URL', details: err.message });
     }
 });
