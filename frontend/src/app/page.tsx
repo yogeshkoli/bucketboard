@@ -5,6 +5,7 @@ import { FileList, type FileListData } from '@/components/FileList';
 import { UploadDialog } from '@/components/UploadDialog';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
@@ -143,9 +144,10 @@ export default function HomePage() {
             <h1 className="text-xl font-semibold mb-2">BucketBoard</h1>
             <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <CreateFolderDialog currentPrefix={prefix} onSuccess={fetchFiles} />
             <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
+            <ThemeToggle />
           </div>
         </div>
         <div className="p-4 border-b">
