@@ -8,14 +8,14 @@
 
 ## 🚀 Features
 
-- ✅ Browse files and folders (S3 object prefix emulation)
-- ✅ Upload files with drag-and-drop
-- ✅ Delete and preview files (images, PDFs)
-- ✅ Search and filter by file type
-- ✅ Create folders
-- ✅ Responsive UI with dark mode
-- ✅ Dockerized deployment
-- 🔐 (Optional) User authentication (JWT or token)
+- ✅ **Browse & Organize:** Create, rename, and move files and folders with an intuitive interface.
+- ✅ **Drag & Drop:** Easily upload files or reorganize them by dragging them into folders.
+- ✅ **Bulk Actions:** Select and delete multiple files at once to manage your bucket efficiently.
+- ✅ **Secure Sharing:** Generate time-limited, secure links (pre-signed URLs) to share files externally.
+- ✅ **Powerful Search:** Instantly find what you need with client-side search and filtering by name or type.
+- ✅ **File Previews:** Preview common file types like images and PDFs directly in the browser.
+- ✅ **Modern UI:** A clean, responsive interface with both light and dark modes.
+- ✅ **Dockerized:** Get up and running in minutes with a simple `docker-compose up`.
 
 ---
 
@@ -95,9 +95,7 @@ docker-compose up --build
 
 ## 📈 Roadmap
 
-- [ ] Auth via JWT or Cognito
-- [ ] File sharing (pre-signed URLs)
-- [ ] Folder rename / move
+- [ ] User Authentication (JWT or Cognito)
 - [ ] Role-based access control
 - [ ] Support multiple buckets
 - [ ] Multi-tenant mode
