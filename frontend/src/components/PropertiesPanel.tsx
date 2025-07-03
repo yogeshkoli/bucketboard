@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import React, { useState, useEffect } from 'react';
 import { FileItem } from './FileList';
 import { Button } from './ui/button';
@@ -29,6 +30,7 @@ export function PropertiesPanel({ file, onClose, onActionSuccess }: PropertiesPa
           setTags(data || []);
         } catch (error) {
           console.error('Failed to fetch tags', error);
+          toast.error("Failed to load file metadata.");
           setTags([]);
         } finally {
           setIsLoading(false);
@@ -67,9 +69,11 @@ export function PropertiesPanel({ file, onClose, onActionSuccess }: PropertiesPa
         }
       );
       if (!res.ok) throw new Error('Failed to save changes.');
+      toast.success("Metadata saved successfully.");
       onActionSuccess();
     } catch (error) {
       console.error('Failed to save changes', error);
+      toast.error("Failed to save metadata.");
     } finally {
       setIsLoading(false);
     }

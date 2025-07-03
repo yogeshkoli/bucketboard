@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,11 +45,13 @@ export function CreateFolderDialog({ currentPrefix, onSuccess }: CreateFolderDia
             }
 
             onSuccess();
+            toast.success(`Folder "${folderName}" created.`);
             setIsOpen(false);
             setFolderName('');
         } catch (e) {
             if (e instanceof Error) {
                 setError(e.message);
+                toast.error(e.message);
             } else {
                 setError('An unexpected error occurred.');
             }

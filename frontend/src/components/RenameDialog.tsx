@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,11 +56,13 @@ export function RenameDialog({ item, isOpen, onOpenChange, onSuccess, currentPre
       }
 
       onSuccess();
+      toast.success(`Item renamed to "${newName}"`);
       onOpenChange(false);
     } catch (e) {
       if (e instanceof Error) {
         setError(e.message);
       } else {
+        toast.error("Rename failed.");
         setError('An unexpected error occurred.');
       }
     }

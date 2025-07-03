@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,6 +59,7 @@ export function ShareDialog({ file, isOpen, onOpenChange }: ShareDialogProps) {
       if (e instanceof Error) {
         setError(e.message);
       } else {
+        toast.error("Failed to generate link.");
         setError('An unexpected error occurred.');
       }
     } finally {
@@ -68,6 +70,7 @@ export function ShareDialog({ file, isOpen, onOpenChange }: ShareDialogProps) {
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(generatedUrl);
     setIsCopied(true);
+    toast.success("Link copied to clipboard!");
     setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
   };
 

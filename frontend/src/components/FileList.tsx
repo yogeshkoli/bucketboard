@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { DndContext, DragOverlay, useDraggable, useDroppable, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import {
   Table,
@@ -106,9 +107,10 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         throw new Error('Failed to delete file.');
       }
       onActionSuccess();
+      toast.success(`File "${fileToDelete.name}" deleted successfully.`);
     } catch (error) {
       console.error("Deletion failed:", error);
-      // In a real app, you'd show a toast notification here
+      toast.error("Failed to delete file.");
     } finally {
       setFileToDelete(null);
     }
@@ -128,9 +130,10 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         throw new Error('Failed to delete selected files.');
       }
       onActionSuccess();
+      toast.success(`${selectedKeys.size} file(s) deleted successfully.`);
     } catch (error) {
       console.error("Bulk deletion failed:", error);
-      // In a real app, you'd show a toast notification here
+      toast.error("Failed to delete selected files.");
     } finally {
       setIsBulkDeleteConfirmOpen(false);
     }
@@ -169,8 +172,8 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
       setPreviewFile({ file, url });
     } catch (error) {
       console.error("Preview failed:", error);
+      toast.error("Failed to generate file preview.");
       setPreviewFile(null); // Close dialog on error
-      // In a real app, you'd show a toast notification here
     } finally {
       setIsPreviewLoading(false);
     }
@@ -191,7 +194,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
       window.open(url, '_blank');
     } catch (error) {
       console.error("Download failed:", error);
-      // In a real app, you'd show a toast notification here
+      toast.error("Failed to download file.");
     }
   };
 
@@ -219,6 +222,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
       document.body.removeChild(a);
     } catch (error) {
       console.error("Folder download failed:", error);
+      toast.error("Failed to download folder.");
     } finally {
       setIsDownloading(null);
     }
@@ -257,7 +261,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         onActionSuccess();
       } catch (error) {
         console.error("Move failed:", error);
-        // In a real app, you'd show a toast notification here
+        toast.error(`Failed to move file.`);
       }
     }
   }; 

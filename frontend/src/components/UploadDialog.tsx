@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from "sonner"
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
@@ -95,6 +96,7 @@ export function UploadDialog({ currentPrefix, onUploadSuccess }: UploadDialogPro
                     xhr.send(uploadableFile.file);
                 });
             } catch (error) {
+                toast.error(`Failed to upload ${uploadableFile.file.name}.`);
                 console.error('Upload failed:', error);
                 setFiles(prev => prev.map((f, i) => i === index ? { ...f, status: 'error' } : f));
             }
@@ -103,6 +105,7 @@ export function UploadDialog({ currentPrefix, onUploadSuccess }: UploadDialogPro
         await Promise.all(uploadPromises);
         setUploadCompleted(true);
         onUploadSuccess(); // Refresh the file list on the main page
+        toast.success(`${files.length} file(s) uploaded successfully.`);
     };
 
     return (
