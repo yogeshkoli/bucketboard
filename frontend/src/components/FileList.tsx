@@ -6,7 +6,7 @@ import {
     TableHeader,
     TableRow,
   } from "@/components/ui/table";
-  import { File, Folder, FileArchive, FileImage, FileText, FileVideo, FileAudio, FileCode } from "lucide-react";
+  import { File, Folder, FileArchive, FileImage, FileText, FileVideo, FileAudio, FileCode, ArrowUp } from "lucide-react";
   
   // --- Type Definitions ---
   export interface FileItem {
@@ -24,6 +24,13 @@ import {
   export interface FileListData {
     folders: FolderItem[];
     files: FileItem[];
+  }
+
+  interface FileListProps {
+    items: FileListData;
+    onFolderClick: (prefix: string) => void;
+    onNavigateUp: () => void;
+    currentPrefix: string;
   }
 
   // Helper to format bytes into a readable string
@@ -66,8 +73,8 @@ import {
     }
   };
   
-  export function FileList({ items }: { items: FileListData }) {
-    if (!items || (items.folders.length === 0 && items.files.length === 0)) {
+  export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix }: FileListProps) {
+    if (!items || (items.folders.length === 0 && items.files.length === 0 && !currentPrefix)) {
       return (
         <div className="text-center py-10 text-muted-foreground">
           This folder is empty.
@@ -86,8 +93,16 @@ import {
           </TableRow>
         </TableHeader>
         <TableBody>
+        {currentPrefix && (
+            <TableRow onClick={onNavigateUp} className="cursor-pointer hover:bg-muted/50">
+              <TableCell><ArrowUp className="h-5 w-5 text-muted-foreground" /></TableCell>
+              <TableCell className="font-medium">..</TableCell>
+              <TableCell>--</TableCell>
+              <TableCell className="text-right">--</TableCell>
+            </TableRow>
+          )}
           {items.folders.map((folder) => (
-            <TableRow key={folder.prefix}>
+            <TableRow key={folder.prefix} onClick={() => onFolderClick(folder.prefix)} className="cursor-pointer hover:bg-muted/50">
               <TableCell><Folder className="h-5 w-5 text-muted-foreground" /></TableCell>
               <TableCell className="font-medium">{folder.name}</TableCell>
               <TableCell>--</TableCell>
