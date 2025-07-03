@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FileList, type FileListData } from '@/components/FileList';
 import { UploadDialog } from '@/components/UploadDialog';
+import { CreateFolderDialog } from '@/components/CreateFolderDialog';
+import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
@@ -86,12 +88,13 @@ export default function HomePage() {
       <div className="border rounded-lg">
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h1 className="text-xl font-semibold">BucketBoard</h1>
-            <p className="text-sm text-muted-foreground">
-              Browsing: {process.env.NEXT_PUBLIC_AWS_BUCKET_NAME || 'your-bucket'}/{prefix}
-            </p>
+            <h1 className="text-xl font-semibold mb-2">BucketBoard</h1>
+            <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
           </div>
-          <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
+          <div className="flex items-center gap-2">
+            <CreateFolderDialog currentPrefix={prefix} onSuccess={fetchFiles} />
+            <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
+          </div>
         </div>
         {loading && <FileListSkeleton />}
         {error && (

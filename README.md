@@ -50,7 +50,7 @@ bucketboard/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/bucketboard.git
+git clone https://github.com/yogeshkoli/bucketboard.git
 cd bucketboard
 ```
 
