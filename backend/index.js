@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // --- Environment Variable Setup ---
@@ -21,8 +21,6 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
-// --- AWS S3 Client ---
-// Ensure your .env file at the root has AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
@@ -38,48 +36,46 @@ const port = process.env.PORT || 5002;
 // --- Middleware ---
 app.use(cors({ origin: 'http://localhost:3002' })); // Allow frontend to connect
 app.use(express.json());
+app.use(express.json());
 
 // --- API Routes ---
 app.get('/', (req, res) => {
   res.send('Hello from BucketBoard Backend!');
 });
 
+// API Endpoint to list files from the S3 bucket
 app.get('/api/files', async (req, res) => {
-  const prefix = req.query.prefix || ''; // Allow browsing into "folders"
+  const prefix = req.query.prefix || '';
 
   const command = new ListObjectsV2Command({
     Bucket: process.env.AWS_BUCKET_NAME,
     Prefix: prefix,
-    Delimiter: '/', // This is key to treating the bucket like a filesystem
+    Delimiter: '/', // This is the key to separating files and folders
   });
 
   try {
-    const { Contents, CommonPrefixes } = await s3Client.send(command);
-    
-    // Folders are in CommonPrefixes
-    const folders = CommonPrefixes?.map(p => ({
-        name: p.Prefix.replace(prefix, '').replace('/', ''),
-        type: 'folder',
-        prefix: p.Prefix,
-    })) || [];
+    const data = await s3Client.send(command);
 
-    // Files are in Contents
-    const files = Contents?.filter(obj => obj.Key !== prefix) // Don't show the folder itself as a file
-      .map(obj => ({
-        name: obj.Key.replace(prefix, ''),
-        key: obj.Key,
-        size: obj.Size,
-        lastModified: obj.LastModified,
-        type: 'file',
-      })) || [];
+    // Folders are returned in CommonPrefixes
+    const folders = (data.CommonPrefixes || []).map(p => ({
+      name: p.Prefix.replace(prefix, '').replace(/\/$/, ''),
+      prefix: p.Prefix,
+    }));
+
+    // Files are returned in Contents
+    const files = (data.Contents || [])
+      .filter(file => file.Key !== prefix) // Exclude the folder itself
+      .map(file => ({
+        key: file.Key,
+        name: file.Key.replace(prefix, ''),
+        lastModified: file.LastModified,
+        size: file.Size,
+      }));
 
     res.json({ folders, files });
   } catch (err) {
     console.error('Error listing S3 objects:', err);
-    if (err.name === 'NoSuchBucket') {
-        return res.status(404).json({ message: `Bucket not found: ${process.env.AWS_BUCKET_NAME}` });
-    }
-    res.status(500).json({ message: 'Failed to list bucket contents. Check backend logs and AWS credentials.' });
+    res.status(500).json({ error: 'Failed to list S3 objects', details: err.message });
   }
 });
 
@@ -109,6 +105,51 @@ app.post('/api/upload/presigned-url', async (req, res) => {
   }
 });
 
+// API Endpoint to delete a file
+app.delete('/api/files', async (req, res) => {
+  const { key } = req.body;
+
+  if (!key) {
+    return res.status(400).json({ error: 'File key is required.' });
+  }
+
+  const command = new DeleteObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: key,
+  });
+
+  try {
+    await s3Client.send(command);
+    res.status(200).json({ message: 'File deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting file:', err);
+    res.status(500).json({ error: 'Failed to delete file', details: err.message });
+  }
+});
+
+// API Endpoint to generate a pre-signed URL for viewing/downloading a file
+app.post('/api/files/presigned-url', async (req, res) => {
+    const { key } = req.body;
+
+    if (!key) {
+        return res.status(400).json({ error: 'File key is required.' });
+    }
+
+    const command = new GetObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+    });
+
+    try {
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 }); // URL is valid for 5 minutes
+        res.json({ url: signedUrl });
+    } catch (err) {
+        console.error('Error creating pre-signed GET URL:', err);
+        res.status(500).json({ error: 'Failed to create pre-signed URL', details: err.message });
+    }
+});
+
+// --- Start Server ---
 app.listen(port, () => {
-  console.log(`Backend server running at http://localhost:${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });
