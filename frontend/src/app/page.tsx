@@ -107,10 +107,10 @@ export default function HomePage() {
             onFolderClick={handleFolderClick}
             onNavigateUp={handleNavigateUp}
             currentPrefix={prefix}
+            onDeleteSuccess={fetchFiles}
           />
         )}
       </div>
     </main>
   );
 }
-
