@@ -1,13 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FileList, type FileListData } from '@/components/FileList';
 import { UploadDialog } from '@/components/UploadDialog';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Terminal, Search } from 'lucide-react';
 
 const FileListSkeleton = () => (
   <div className="p-4 space-y-4">
@@ -37,6 +45,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prefix, setPrefix] = useState(''); // To manage the current "folder"
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -70,6 +80,48 @@ export default function HomePage() {
     fetchFiles();
   }, [fetchFiles]);
 
+  const filteredData = useMemo(() => {
+    if (!data) return null;
+
+    const lowerCaseQuery = searchQuery.toLowerCase();
+
+    const files = data.files.filter((file) => {
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+        const imageExt = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'];
+        const docExt = ['pdf', 'doc', 'docx', 'txt', 'md'];
+        const videoExt = ['mp4', 'mov', 'avi', 'mkv'];
+        const audioExt = ['mp3', 'wav'];
+        const archiveExt = ['zip', 'rar', '7z'];
+        const codeExt = ['js', 'jsx', 'ts', 'tsx', 'html', 'css'];
+        const allKnownExt = [...imageExt, ...docExt, ...videoExt, ...audioExt, ...archiveExt, ...codeExt];
+
+        const typeMatch =
+            filterType === 'all' ||
+            (filterType === 'images' && imageExt.includes(extension)) ||
+            (filterType === 'documents' && docExt.includes(extension)) ||
+            (filterType === 'videos' && videoExt.includes(extension)) ||
+            (filterType === 'audio' && audioExt.includes(extension)) ||
+            (filterType === 'archives' && archiveExt.includes(extension)) ||
+            (filterType === 'code' && codeExt.includes(extension)) ||
+            (filterType === 'other' && !allKnownExt.includes(extension));
+
+        const nameMatch = file.name.toLowerCase().includes(lowerCaseQuery);
+
+        return typeMatch && nameMatch;
+    });
+
+    // Only show folders if no type filter is active and they match the search query.
+    const folders =
+      filterType === 'all'
+        ? data.folders.filter(folder =>
+            folder.name.toLowerCase().includes(lowerCaseQuery)
+          )
+        : [];
+
+    return { folders, files };
+  }, [data, searchQuery, filterType]);
+
   const handleFolderClick = (newPrefix: string) => {
     setPrefix(newPrefix);
   };
@@ -96,6 +148,34 @@ export default function HomePage() {
             <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
           </div>
         </div>
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="images">Images</SelectItem>
+                <SelectItem value="documents">Documents</SelectItem>
+                <SelectItem value="videos">Videos</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
+                <SelectItem value="archives">Archives</SelectItem>
+                <SelectItem value="code">Code</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         {loading && <FileListSkeleton />}
         {error && (
           <Alert variant="destructive" className="m-4">
@@ -104,9 +184,9 @@ export default function HomePage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        {data && (
+        {filteredData && (
           <FileList
-            items={data}
+            items={filteredData}
             onFolderClick={handleFolderClick}
             onNavigateUp={handleNavigateUp}
             currentPrefix={prefix}
