@@ -68,6 +68,7 @@ app.get('/api/files', async (req, res) => {
         name: file.Key.replace(prefix, ''),
         lastModified: file.LastModified,
         size: file.Size,
+        storageClass: file.StorageClass,
       }));
 
     res.json({ folders, files });
@@ -293,7 +294,85 @@ app.post('/api/share/presigned-url', async (req, res) => {
     }
 });
 
-// --- Start Server ---
+// API Endpoint for Storage Analytics
+app.get('/api/analytics', async (req, res) => {
+    const bucketName = process.env.AWS_BUCKET_NAME;
+    let continuationToken;
+    let allObjects = [];
+
+    try {
+        // Paginate through all objects in the bucket
+        do {
+            const command = new ListObjectsV2Command({
+                Bucket: bucketName,
+                ContinuationToken: continuationToken,
+            });
+            const response = await s3Client.send(command);
+            allObjects = allObjects.concat(response.Contents || []);
+            continuationToken = response.NextContinuationToken;
+        } while (continuationToken);
+
+        // --- Calculations ---
+        const totalFiles = allObjects.length;
+        const totalSize = allObjects.reduce((acc, obj) => acc + obj.Size, 0);
+
+        const topLargestFiles = allObjects
+            .sort((a, b) => b.Size - a.Size)
+            .slice(0, 10)
+            .map(obj => ({
+                key: obj.Key,
+                size: obj.Size,
+                lastModified: obj.LastModified,
+            }));
+
+        const uploadTrend = allObjects.reduce((acc, obj) => {
+            const month = obj.LastModified.toISOString().substring(0, 7); // YYYY-MM
+            acc[month] = (acc[month] || 0) + 1;
+            return acc;
+        }, {});
+
+        const formattedUploadTrend = Object.entries(uploadTrend)
+            .map(([date, count]) => ({ date, count }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+
+        const fileTypeDistribution = allObjects.reduce((acc, obj) => {
+            const extension = obj.Key.split('.').pop()?.toLowerCase() || 'other';
+            const imageExt = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'];
+            const docExt = ['pdf', 'doc', 'docx', 'txt', 'md'];
+            const videoExt = ['mp4', 'mov', 'avi', 'mkv'];
+            const audioExt = ['mp3', 'wav'];
+            const archiveExt = ['zip', 'rar', '7z'];
+            const codeExt = ['js', 'jsx', 'ts', 'tsx', 'html', 'css'];
+
+            let type = 'Other';
+            if (imageExt.includes(extension)) type = 'Images';
+            else if (docExt.includes(extension)) type = 'Documents';
+            else if (videoExt.includes(extension)) type = 'Videos';
+            else if (audioExt.includes(extension)) type = 'Audio';
+            else if (archiveExt.includes(extension)) type = 'Archives';
+            else if (codeExt.includes(extension)) type = 'Code';
+
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+        }, {});
+
+        const formattedFileTypeDistribution = Object.entries(fileTypeDistribution)
+            .map(([name, value]) => ({ name, value }));
+
+        res.json({
+            totalFiles,
+            totalSize,
+            topLargestFiles,
+            uploadTrend: formattedUploadTrend,
+            fileTypeDistribution: formattedFileTypeDistribution,
+        });
+    } catch (err) {
+        console.error('Error fetching analytics data:', err);
+        res.status(500).json({ error: 'Failed to fetch analytics data', details: err.message });
+    }
+});
+
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

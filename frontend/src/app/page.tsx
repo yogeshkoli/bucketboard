@@ -16,7 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Terminal, Search } from 'lucide-react';
+import { Terminal, Search, BarChart2 } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 const FileListSkeleton = () => (
   <div className="p-4 space-y-4">
@@ -151,6 +153,9 @@ export default function HomePage() {
             <BreadcrumbNav prefix={prefix} onNavigate={setPrefix} />
           </div>
           <div className="flex items-center gap-3">
+            <Button asChild variant="outline" size="icon">
+              <Link href="/dashboard"><BarChart2 className="h-4 w-4" /></Link>
+            </Button>
             <CreateFolderDialog currentPrefix={prefix} onSuccess={fetchFiles} />
             <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
             <ThemeToggle />
