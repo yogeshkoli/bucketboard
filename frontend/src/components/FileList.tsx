@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-import { Folder, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2 } from "lucide-react";
+import { Folder, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2, Download, Loader2 } from "lucide-react";
 import { formatBytes, getFileIcon } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { RenameDialog } from "./RenameDialog";
@@ -75,6 +75,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
   const [fileToShare, setFileToShare] = useState<FileItem | null>(null);
   const [previewFile, setPreviewFile] = useState<{ file: FileItem, url: string } | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
@@ -175,6 +176,54 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
     }
   };
 
+  const handleDownloadFile = async (file: FileItem) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/files/presigned-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: file.key, download: true }),
+      });
+
+      if (!res.ok) throw new Error('Failed to get download URL.');
+      const { url } = await res.json();
+      // Opening the URL in a new tab will trigger the download
+      // due to the Content-Disposition header set by the backend.
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error("Download failed:", error);
+      // In a real app, you'd show a toast notification here
+    }
+  };
+
+  const handleDownloadFolder = async (folder: FolderItem) => {
+    setIsDownloading(folder.prefix);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/download/folder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix: folder.prefix }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to download folder.');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folder.name}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Folder download failed:", error);
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = event;
@@ -248,7 +297,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
             <NavigateUpRow onNavigateUp={onNavigateUp} parentPrefix={parentPrefix} />
           )}
           {items.folders.map((folder) => (
-            <FolderRow key={folder.prefix} folder={folder} onFolderClick={onFolderClick} onRename={() => setItemToRename(folder)} />
+            <FolderRow key={folder.prefix} folder={folder} onFolderClick={onFolderClick} onRename={() => setItemToRename(folder)} onDownload={() => handleDownloadFolder(folder)} isDownloading={isDownloading === folder.prefix} />
           ))}
           {items.files.map((file) => (
             <FileRow
@@ -261,7 +310,8 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
               onPreview={handlePreview}
               onRename={() => setItemToRename(file)}
               onShare={() => setFileToShare(file)}
-              onDelete={() => setFileToDelete(file)} />
+              onDelete={() => setFileToDelete(file)}
+              onDownload={() => handleDownloadFile(file)} />
           ))}
         </TableBody>
       </Table>
@@ -358,7 +408,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
 
 // --- Draggable and Droppable Row Components ---
 
-function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow, onFileSelect, onPreview, onRename, onShare, onDelete }: { file: FileItem, isSelectedForBulk: boolean, isSelectedForProperties: boolean, onSelectRow: (key: string, checked: boolean) => void, onFileSelect: (file: FileItem | null) => void, onPreview: (file: FileItem) => void, onRename: () => void, onShare: () => void, onDelete: () => void }) {
+function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow, onFileSelect, onPreview, onRename, onShare, onDelete, onDownload }: { file: FileItem, isSelectedForBulk: boolean, isSelectedForProperties: boolean, onSelectRow: (key: string, checked: boolean) => void, onFileSelect: (file: FileItem | null) => void, onPreview: (file: FileItem) => void, onRename: () => void, onShare: () => void, onDelete: () => void, onDownload: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: file.key,
   });
@@ -390,6 +440,7 @@ function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow
             <DropdownMenuItem onClick={onRename}><Pencil className="mr-2 h-4 w-4" /><span>Rename</span></DropdownMenuItem>
             <DropdownMenuItem onClick={onShare}><Share2 className="mr-2 h-4 w-4" /><span>Share</span></DropdownMenuItem>
             <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
+            <DropdownMenuItem onClick={onDownload}><Download className="mr-2 h-4 w-4" /><span>Download</span></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -414,7 +465,7 @@ function NavigateUpRow({ onNavigateUp, parentPrefix }: { onNavigateUp: () => voi
   );
 }
 
-function FolderRow({ folder, onFolderClick, onRename }: { folder: FolderItem, onFolderClick: (prefix: string) => void, onRename: () => void }) {
+function FolderRow({ folder, onFolderClick, onRename, onDownload, isDownloading }: { folder: FolderItem, onFolderClick: (prefix: string) => void, onRename: () => void, onDownload: () => void, isDownloading: boolean }) {
   const { isOver, setNodeRef } = useDroppable({
     id: folder.prefix,
   });
@@ -428,14 +479,18 @@ function FolderRow({ folder, onFolderClick, onRename }: { folder: FolderItem, on
       <TableCell>--</TableCell>
       <TableCell className="text-right">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild disabled={isDownloading}>
             <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onRename}><Pencil className="mr-2 h-4 w-4" /><span>Rename</span></DropdownMenuItem>
+            <DropdownMenuItem onClick={onDownload}><Download className="mr-2 h-4 w-4" /><span>Download</span></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
