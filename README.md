@@ -83,13 +83,18 @@ docker-compose up --build
 
 ---
 
-## 📄 API Endpoints (WIP)
+## 📄 API Endpoints
 
-| Method | Endpoint         | Description             |
-|--------|------------------|-------------------------|
-| GET    | `/api/files`     | List files in bucket    |
-| POST   | `/api/upload`    | Upload file to S3       |
-| DELETE | `/api/delete`    | Delete file from S3     |
+| Method | Endpoint                    | Description                                       |
+|--------|-----------------------------|---------------------------------------------------|
+| GET    | `/api/files`                | List files and folders within a prefix.           |
+| POST   | `/api/upload/presigned-url` | Generate a pre-signed URL for file uploads.       |
+| POST   | `/api/files/presigned-url`  | Generate a pre-signed URL for file previews.      |
+| POST   | `/api/share/presigned-url`  | Generate a pre-signed URL for secure file sharing.|
+| POST   | `/api/folders`              | Create a new folder (empty object with a `/`).    |
+| POST   | `/api/rename`               | Rename/move a file or folder.                     |
+| DELETE | `/api/files`                | Delete a single file.                             |
+| DELETE | `/api/files/bulk`           | Delete multiple files in a single request.        |
 
 ---
 
@@ -104,7 +109,7 @@ docker-compose up --build
 
 ## 🤝 Contributing
 
-Pull requests welcome! Please open an issue first for feature requests or bug reports.
+Contributions are welcome! Please see our [Contributing Guide](./CONTRIBUTING.md) for more details on how to get started.
 
 ---
 
