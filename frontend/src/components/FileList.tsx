@@ -226,7 +226,13 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragId(null);
-    const { active, over } = event;
+    const { active, over, delta } = event;
+
+    // This is the crucial check: if the item was not moved, it was a click, not a drag.
+    // In that case, we don't want to trigger the move logic.
+    if (delta.x === 0 && delta.y === 0) {
+      return;
+    }
 
     if (over && active.id !== over.id) {
       const fileKey = active.id as string;
@@ -421,16 +427,16 @@ function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow
   return (
     <TableRow ref={setNodeRef} style={style} {...attributes} data-state={isSelectedForProperties ? 'active' : isSelectedForBulk ? 'selected' : undefined} onClick={() => onFileSelect(file)}>
       <TableCell className="pl-4">
-        <Checkbox checked={isSelectedForBulk} onCheckedChange={(checked) => onSelectRow(file.key, !!checked)} />
+        <Checkbox checked={isSelectedForBulk} onCheckedChange={(checked) => onSelectRow(file.key, !!checked)} onClick={(e) => e.stopPropagation()} />
       </TableCell>
-      <TableCell>{getFileIcon(file.name)}</TableCell>
+      <TableCell>{getFileIcon(file.name, { className: "cursor-pointer" })}</TableCell>
       <TableCell {...listeners} className="cursor-grab">{file.name}</TableCell>
       <TableCell>{new Date(file.lastModified).toLocaleDateString()}</TableCell>
       <TableCell className="text-right">{formatBytes(file.size)}</TableCell>
       <TableCell className="text-right">
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => open && onFileSelect(null)}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
