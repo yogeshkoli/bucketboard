@@ -153,6 +153,37 @@ app.delete('/api/files', async (req, res) => {
   }
 });
 
+// API Endpoint for bulk file deletion
+app.delete('/api/files/bulk', async (req, res) => {
+    const { keys } = req.body;
+
+    if (!keys || !Array.isArray(keys) || keys.length === 0) {
+        return res.status(400).json({ error: 'An array of file keys is required.' });
+    }
+
+    const deleteParams = {
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Delete: {
+            Objects: keys.map(key => ({ Key: key })),
+            Quiet: false,
+        },
+    };
+
+    try {
+        const command = new DeleteObjectsCommand(deleteParams);
+        const data = await s3Client.send(command);
+
+        if (data.Errors && data.Errors.length > 0) {
+            console.error('Errors during bulk delete:', data.Errors);
+            return res.status(500).json({ message: 'Some files could not be deleted.', errors: data.Errors });
+        }
+        res.status(200).json({ message: 'Files deleted successfully.' });
+    } catch (err) {
+        console.error('Error performing bulk delete:', err);
+        res.status(500).json({ error: 'Failed to delete files', details: err.message });
+    }
+});
+
 // API Endpoint to rename a file or folder
 app.post('/api/rename', async (req, res) => {
     const { oldKey, newKey, isFolder } = req.body;
