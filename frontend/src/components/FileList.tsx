@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { DndContext, DragOverlay, useDraggable, useDroppable, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import {
   Table,
   TableBody,
@@ -110,6 +111,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
   const [fileToShare, setFileToShare] = useState<FileItem | null>(null);
   const [previewFile, setPreviewFile] = useState<{ file: FileItem, url: string } | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   // Clear selection when the list of items changes (e.g., folder navigation)
@@ -119,6 +121,11 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
 
   const numFiles = items.files.length;
   const numSelected = selectedKeys.size;
+  const activeFile = activeDragId ? items.files.find(f => f.key === activeDragId) : null;
+
+  // Calculate parent prefix for the "navigate up" drop zone
+  const lastSlashIndex = currentPrefix.slice(0, -1).lastIndexOf('/');
+  const parentPrefix = lastSlashIndex === -1 ? '' : currentPrefix.slice(0, lastSlashIndex + 1);
 
   const handleDelete = async () => {
     if (!fileToDelete) return;
@@ -204,6 +211,38 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const fileKey = active.id as string;
+      const folderPrefix = over.id as string;
+      const fileName = items.files.find(f => f.key === fileKey)?.name;
+
+      if (!fileName) return;
+
+      const oldKey = fileKey;
+      const newKey = `${folderPrefix}${fileName}`;
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/rename`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldKey, newKey, isFolder: false }),
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to move file.');
+        }
+        onActionSuccess();
+      } catch (error) {
+        console.error("Move failed:", error);
+        // In a real app, you'd show a toast notification here
+      }
+    }
+  };
+
   const isImage = (fileName: string) => /\.(jpe?g|png|gif|svg|webp)$/i.test(fileName);
   const isPDF = (fileName: string) => /\.pdf$/i.test(fileName);
 
@@ -217,7 +256,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
   }
 
   return (
-    <>
+    <DndContext onDragStart={(e) => setActiveDragId(e.active.id as string)} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
       {numSelected > 0 && (
         <div className="flex items-center justify-between p-2 px-4 bg-muted/50 border-b">
           <span className="text-sm font-medium">{numSelected} selected</span>
@@ -242,81 +281,18 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         </TableHeader>
         <TableBody>
           {currentPrefix && (
-            <TableRow onClick={onNavigateUp} className="cursor-pointer hover:bg-muted/50">
-              <TableCell></TableCell>
-              <TableCell><ArrowUp className="h-5 w-5 text-muted-foreground" /></TableCell>
-              <TableCell className="font-medium">..</TableCell>
-              <TableCell>--</TableCell>
-              <TableCell>--</TableCell>
-              <TableCell className="text-right">--</TableCell>
-            </TableRow>
+            <NavigateUpRow onNavigateUp={onNavigateUp} parentPrefix={parentPrefix} />
           )}
           {items.folders.map((folder) => (
-            <TableRow key={folder.prefix} data-state={selectedKeys.has(folder.prefix) && 'selected'}>
-              <TableCell></TableCell>
-              <TableCell><Folder className="h-5 w-5 text-muted-foreground" /></TableCell>
-              <TableCell onClick={() => onFolderClick(folder.prefix)} className="font-medium cursor-pointer hover:underline">{folder.name}</TableCell>
-              <TableCell>--</TableCell>
-              <TableCell>--</TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <span className="sr-only">Open menu</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setItemToRename(folder)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      <span>Rename</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
+            <FolderRow key={folder.prefix} folder={folder} onFolderClick={onFolderClick} onRename={() => setItemToRename(folder)} />
           ))}
           {items.files.map((file) => (
-            <TableRow key={file.key} data-state={selectedKeys.has(file.key) && 'selected'}>
-              <TableCell className="pl-4">
-                <Checkbox checked={selectedKeys.has(file.key)} onCheckedChange={(checked) => handleSelectRow(file.key, !!checked)} />
-              </TableCell>
-              <TableCell>{getFileIcon(file.name)}</TableCell>
-              <TableCell>{file.name}</TableCell>
-              <TableCell>{new Date(file.lastModified).toLocaleDateString()}</TableCell>
-              <TableCell className="text-right">{formatBytes(file.size)}</TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <span className="sr-only">Open menu</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handlePreview(file)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      <span>Preview</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setItemToRename(file)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      <span>Rename</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFileToShare(file)}>
-                      <Share2 className="mr-2 h-4 w-4" />
-                      <span>Share</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setFileToDelete(file)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      <span>Delete</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
+            <FileRow key={file.key} file={file} isSelected={selectedKeys.has(file.key)} onSelectRow={handleSelectRow} onPreview={handlePreview} onRename={() => setItemToRename(file)} onShare={() => setFileToShare(file)} onDelete={() => setFileToDelete(file)} />
           ))}
         </TableBody>
       </Table>
+
+      {/* Modals */}
       <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -385,6 +361,110 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
       />
 
       <ShareDialog file={fileToShare} isOpen={!!fileToShare} onOpenChange={(open) => !open && setFileToShare(null)} />
-    </>
+
+      <DragOverlay>
+        {activeFile ? (
+          <Table className="bg-background shadow-lg rounded-lg w-full">
+            <TableBody>
+              <TableRow>
+                <TableCell className="w-[60px] pl-4"><Checkbox checked={true} disabled /></TableCell>
+                <TableCell className="w-[40px]">{getFileIcon(activeFile.name)}</TableCell>
+                <TableCell>{activeFile.name}</TableCell>
+                <TableCell>{new Date(activeFile.lastModified).toLocaleDateString()}</TableCell>
+                <TableCell className="w-[120px] text-right">{formatBytes(activeFile.size)}</TableCell>
+                <TableCell className="w-[50px] text-right"></TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+// --- Draggable and Droppable Row Components ---
+
+function FileRow({ file, isSelected, onSelectRow, onPreview, onRename, onShare, onDelete }: { file: FileItem, isSelected: boolean, onSelectRow: (key: string, checked: boolean) => void, onPreview: (file: FileItem) => void, onRename: () => void, onShare: () => void, onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: file.key,
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    opacity: isDragging ? 0.5 : 1,
+  } : undefined;
+
+  return (
+    <TableRow ref={setNodeRef} style={style} {...attributes} data-state={isSelected && 'selected'}>
+      <TableCell className="pl-4">
+        <Checkbox checked={isSelected} onCheckedChange={(checked) => onSelectRow(file.key, !!checked)} />
+      </TableCell>
+      <TableCell>{getFileIcon(file.name)}</TableCell>
+      <TableCell {...listeners} className="cursor-grab">{file.name}</TableCell>
+      <TableCell>{new Date(file.lastModified).toLocaleDateString()}</TableCell>
+      <TableCell className="text-right">{formatBytes(file.size)}</TableCell>
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onPreview(file)}><Eye className="mr-2 h-4 w-4" /><span>Preview</span></DropdownMenuItem>
+            <DropdownMenuItem onClick={onRename}><Pencil className="mr-2 h-4 w-4" /><span>Rename</span></DropdownMenuItem>
+            <DropdownMenuItem onClick={onShare}><Share2 className="mr-2 h-4 w-4" /><span>Share</span></DropdownMenuItem>
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function NavigateUpRow({ onNavigateUp, parentPrefix }: { onNavigateUp: () => void, parentPrefix: string }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: parentPrefix,
+  });
+
+  return (
+    <TableRow ref={setNodeRef} onClick={onNavigateUp} className={`cursor-pointer hover:bg-muted/50 ${isOver ? 'bg-primary/10' : ''}`}>
+      <TableCell></TableCell>
+      <TableCell><ArrowUp className="h-5 w-5 text-muted-foreground" /></TableCell>
+      <TableCell className="font-medium">..</TableCell>
+      <TableCell>--</TableCell>
+      <TableCell>--</TableCell>
+      <TableCell className="text-right">--</TableCell>
+    </TableRow>
+  );
+}
+
+function FolderRow({ folder, onFolderClick, onRename }: { folder: FolderItem, onFolderClick: (prefix: string) => void, onRename: () => void }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: folder.prefix,
+  });
+
+  return (
+    <TableRow ref={setNodeRef} className={isOver ? 'bg-primary/10' : ''}>
+      <TableCell></TableCell>
+      <TableCell><Folder className="h-5 w-5 text-muted-foreground" /></TableCell>
+      <TableCell onClick={() => onFolderClick(folder.prefix)} className="font-medium cursor-pointer hover:underline">{folder.name}</TableCell>
+      <TableCell>--</TableCell>
+      <TableCell>--</TableCell>
+      <TableCell className="text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onRename}><Pencil className="mr-2 h-4 w-4" /><span>Rename</span></DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
   );
 }
