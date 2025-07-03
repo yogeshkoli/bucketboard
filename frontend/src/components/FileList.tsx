@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 import { File, Folder, FileArchive, FileImage, FileText, FileVideo, FileAudio, FileCode, ArrowUp, MoreHorizontal, Eye, Trash2, Pencil, Share2 } from "lucide-react";
 import { Skeleton } from "./ui/skeleton";
@@ -104,10 +105,20 @@ const getFileIcon = (fileName: string) => {
 
 export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, onActionSuccess }: FileListProps) {
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [itemToRename, setItemToRename] = useState<FileItem | FolderItem | null>(null);
   const [fileToShare, setFileToShare] = useState<FileItem | null>(null);
   const [previewFile, setPreviewFile] = useState<{ file: FileItem, url: string } | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+
+  // Clear selection when the list of items changes (e.g., folder navigation)
+  useEffect(() => {
+    setSelectedKeys(new Set());
+  }, [items]);
+
+  const numFiles = items.files.length;
+  const numSelected = selectedKeys.size;
 
   const handleDelete = async () => {
     if (!fileToDelete) return;
@@ -129,6 +140,47 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
     } finally {
       setFileToDelete(null);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedKeys.size === 0) return;
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/files/bulk`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys: Array.from(selectedKeys) }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete selected files.');
+      }
+      onActionSuccess();
+    } catch (error) {
+      console.error("Bulk deletion failed:", error);
+      // In a real app, you'd show a toast notification here
+    } finally {
+      setIsBulkDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+    if (checked) {
+      const allFileKeys = new Set(items.files.map(f => f.key));
+      setSelectedKeys(allFileKeys);
+    } else {
+      setSelectedKeys(new Set());
+    }
+  };
+
+  const handleSelectRow = (key: string, checked: boolean) => {
+    const newSelectedKeys = new Set(selectedKeys);
+    if (checked) {
+      newSelectedKeys.add(key);
+    } else {
+      newSelectedKeys.delete(key);
+    }
+    setSelectedKeys(newSelectedKeys);
   };
 
   const handlePreview = async (file: FileItem) => {
@@ -166,9 +218,21 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
 
   return (
     <>
+      {numSelected > 0 && (
+        <div className="flex items-center justify-between p-2 px-4 bg-muted/50 border-b">
+          <span className="text-sm font-medium">{numSelected} selected</span>
+          <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteConfirmOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Selected
+          </Button>
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[60px] pl-4">
+              <Checkbox checked={numSelected === numFiles && numFiles > 0 ? true : numSelected > 0 ? 'indeterminate' : false} onCheckedChange={handleSelectAll} disabled={numFiles === 0} />
+            </TableHead>
             <TableHead className="w-[40px]"></TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Last Modified</TableHead>
@@ -179,6 +243,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         <TableBody>
           {currentPrefix && (
             <TableRow onClick={onNavigateUp} className="cursor-pointer hover:bg-muted/50">
+              <TableCell></TableCell>
               <TableCell><ArrowUp className="h-5 w-5 text-muted-foreground" /></TableCell>
               <TableCell className="font-medium">..</TableCell>
               <TableCell>--</TableCell>
@@ -187,7 +252,8 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
             </TableRow>
           )}
           {items.folders.map((folder) => (
-            <TableRow key={folder.prefix}>
+            <TableRow key={folder.prefix} data-state={selectedKeys.has(folder.prefix) && 'selected'}>
+              <TableCell></TableCell>
               <TableCell><Folder className="h-5 w-5 text-muted-foreground" /></TableCell>
               <TableCell onClick={() => onFolderClick(folder.prefix)} className="font-medium cursor-pointer hover:underline">{folder.name}</TableCell>
               <TableCell>--</TableCell>
@@ -211,7 +277,10 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
             </TableRow>
           ))}
           {items.files.map((file) => (
-            <TableRow key={file.key}>
+            <TableRow key={file.key} data-state={selectedKeys.has(file.key) && 'selected'}>
+              <TableCell className="pl-4">
+                <Checkbox checked={selectedKeys.has(file.key)} onCheckedChange={(checked) => handleSelectRow(file.key, !!checked)} />
+              </TableCell>
               <TableCell>{getFileIcon(file.name)}</TableCell>
               <TableCell>{file.name}</TableCell>
               <TableCell>{new Date(file.lastModified).toLocaleDateString()}</TableCell>
@@ -260,6 +329,21 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isBulkDeleteConfirmOpen} onOpenChange={setIsBulkDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {numSelected} selected file(s). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

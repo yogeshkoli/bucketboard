@@ -20,23 +20,29 @@ import { Terminal, Search } from 'lucide-react';
 
 const FileListSkeleton = () => (
   <div className="p-4 space-y-4">
-    <div className="grid grid-cols-[40px_1fr_150px_100px] items-center gap-4">
+    <div className="grid grid-cols-[60px_40px_1fr_150px_120px_50px] items-center gap-4">
+      <Skeleton className="h-5 w-5" />
       <Skeleton className="h-5 w-5" />
       <Skeleton className="h-4 w-[250px]" />
       <Skeleton className="h-4 w-[120px]" />
       <Skeleton className="h-4 w-[80px]" />
+      <Skeleton className="h-4 w-5" />
     </div>
-    <div className="grid grid-cols-[40px_1fr_150px_100px] items-center gap-4">
+    <div className="grid grid-cols-[60px_40px_1fr_150px_120px_50px] items-center gap-4">
+      <Skeleton className="h-5 w-5" />
       <Skeleton className="h-5 w-5" />
       <Skeleton className="h-4 w-[200px]" />
       <Skeleton className="h-4 w-[120px]" />
       <Skeleton className="h-4 w-[80px]" />
+      <Skeleton className="h-4 w-5" />
     </div>
-    <div className="grid grid-cols-[40px_1fr_150px_100px] items-center gap-4">
+    <div className="grid grid-cols-[60px_40px_1fr_150px_120px_50px] items-center gap-4">
+      <Skeleton className="h-5 w-5" />
       <Skeleton className="h-5 w-5" />
       <Skeleton className="h-4 w-[300px]" />
       <Skeleton className="h-4 w-[120px]" />
       <Skeleton className="h-4 w-[80px]" />
+      <Skeleton className="h-4 w-5" />
     </div>
   </div>
 );
