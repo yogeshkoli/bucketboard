@@ -32,10 +32,8 @@ const s3Client = new S3Client({
 // --- Express App Setup ---
 const app = express();
 const port = process.env.PORT || 5002;
- 
 // --- Middleware ---
 app.use(cors({ origin: 'http://localhost:3002' })); // Allow frontend to connect
-app.use(express.json());
 app.use(express.json());
 
 // --- API Routes ---
@@ -102,6 +100,34 @@ app.post('/api/upload/presigned-url', async (req, res) => {
   } catch (err) {
     console.error('Error creating pre-signed URL:', err);
     res.status(500).json({ error: 'Failed to create pre-signed URL', details: err.message });
+  }
+});
+
+// API Endpoint to create a new folder (empty object with a trailing slash)
+app.post('/api/folders', async (req, res) => {
+  const { folderName, prefix } = req.body;
+
+  if (!folderName) {
+    return res.status(400).json({ error: 'folderName is required.' });
+  }
+  if (folderName.includes('/')) {
+      return res.status(400).json({ error: 'Folder name cannot contain slashes.' });
+  }
+
+  const key = prefix ? `${prefix}${folderName}/` : `${folderName}/`;
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: key,
+    Body: '', // Folders are just empty objects with a trailing slash
+  });
+
+  try {
+    await s3Client.send(command);
+    res.status(201).json({ message: 'Folder created successfully.', key });
+  } catch (err) {
+    console.error('Error creating folder:', err);
+    res.status(500).json({ error: 'Failed to create folder', details: err.message });
   }
 });
 
