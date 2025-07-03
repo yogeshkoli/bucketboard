@@ -8,14 +8,15 @@
 
 ## 🚀 Features
 
-- ✅ **Browse & Organize:** Create, rename, and move files and folders with an intuitive interface.
-- ✅ **Drag & Drop:** Easily upload files or reorganize them by dragging them into folders.
-- ✅ **Bulk Actions:** Select and delete multiple files at once to manage your bucket efficiently.
-- ✅ **Secure Sharing:** Generate time-limited, secure links (pre-signed URLs) to share files externally.
-- ✅ **Powerful Search:** Instantly find what you need with client-side search and filtering by name or type.
-- ✅ **File Previews:** Preview common file types like images and PDFs directly in the browser.
-- ✅ **Modern UI:** A clean, responsive interface with both light and dark modes.
-- ✅ **Dockerized:** Get up and running in minutes with a simple `docker-compose up`.
+- ✅ **Full File Management:** Upload, download, preview, rename, and delete files and folders.
+- ✅ **Intuitive Interface:** Organize with drag-and-drop moving and view details in a properties panel.
+- ✅ **Bulk Actions:** Select and delete multiple files at once.
+- ✅ **Secure Sharing:** Generate time-limited, secure links (pre-signed URLs).
+- ✅ **Powerful Search:** Instantly find files with client-side search and filtering.
+- ✅ **Storage Analytics:** Visualize bucket usage with an interactive dashboard.
+- ✅ **Editable Metadata:** View and edit S3 object tags directly from the properties panel.
+- ✅ **Modern UI:** A clean, responsive interface with light and dark modes.
+- ✅ **Dockerized:** Simple setup with `docker-compose up`.
 
 ---
 
@@ -85,16 +86,20 @@ docker-compose up --build
 
 ## 📄 API Endpoints
 
-| Method | Endpoint                    | Description                                       |
-|--------|-----------------------------|---------------------------------------------------|
-| GET    | `/api/files`                | List files and folders within a prefix.           |
-| POST   | `/api/upload/presigned-url` | Generate a pre-signed URL for file uploads.       |
-| POST   | `/api/files/presigned-url`  | Generate a pre-signed URL for file previews.      |
-| POST   | `/api/share/presigned-url`  | Generate a pre-signed URL for secure file sharing.|
-| POST   | `/api/folders`              | Create a new folder (empty object with a `/`).    |
-| POST   | `/api/rename`               | Rename/move a file or folder.                     |
-| DELETE | `/api/files`                | Delete a single file.                             |
-| DELETE | `/api/files/bulk`           | Delete multiple files in a single request.        |
+| Method | Endpoint                    | Description                                          |
+|--------|-----------------------------|------------------------------------------------------|
+| GET    | `/api/files`                | List files and folders, including storage class.     |
+| GET    | `/api/analytics`            | Get aggregated data for the analytics dashboard.     |
+| GET    | `/api/files/metadata`       | Get S3 object tags for a specific file.              |
+| POST   | `/api/files/metadata`       | Update S3 object tags for a specific file.           |
+| POST   | `/api/upload/presigned-url` | Generate a pre-signed URL for file uploads.          |
+| POST   | `/api/files/presigned-url`  | Generate a pre-signed URL for previews or downloads. |
+| POST   | `/api/share/presigned-url`  | Generate a pre-signed URL for secure file sharing.   |
+| POST   | `/api/download/folder`      | Download an entire folder as a zip archive.          |
+| POST   | `/api/folders`              | Create a new folder (empty object with a `/`).       |
+| POST   | `/api/rename`               | Rename/move a file or folder.                        |
+| DELETE | `/api/files`                | Delete a single file.                                |
+| DELETE | `/api/files/bulk`           | Delete multiple files in a single request.           |
 
 ---
 

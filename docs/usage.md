@@ -43,6 +43,11 @@ BucketBoard uses a unified "Rename" action for both renaming and moving items.
     2.  A "Delete Selected" bar will appear at the top. Click it.
     3.  Confirm the action in the dialog to delete all selected files.
 
+### Downloading Items
+
+-   **Single File:** Click the action menu (`...`) on a file and select **Download**.
+-   **Folder:** Click the action menu (`...`) on a folder and select **Download**. The folder will be compressed into a `.zip` file and downloaded. A loading spinner will indicate that the server is preparing the archive.
+
 ## Sharing and Previewing
 
 ### Previewing Files
@@ -58,6 +63,22 @@ Generate a temporary, secure link to share a file with others.
 2.  Choose an expiration time for the link (e.g., 1 Hour, 1 Day).
 3.  Click **Generate Link**.
 4.  Use the copy button to copy the secure URL to your clipboard.
+
+## Viewing File Properties & Metadata
+
+Clicking on any file row will open the **Properties Panel** on the right side of the screen. This panel displays:
+-   **Details:** File name, size, last modified date, storage class, and the full S3 key.
+-   **Metadata Tags:** View, add, edit, or remove S3 object tags. Click "Save Changes" to apply your updates.
+
+Click the `X` button in the panel or click on the file row again to close it.
+
+## Storage Analytics
+
+Click the **bar chart icon** in the header to navigate to the `/dashboard` page. This dashboard provides a comprehensive overview of your bucket's usage, including:
+-   Total file count and total size used.
+-   A pie chart showing the distribution of file types.
+-   A bar chart showing the upload trend over time.
+-   A table listing the top 10 largest files in the bucket.
 
 ## Searching and Filtering
 
