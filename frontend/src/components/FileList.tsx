@@ -39,6 +39,7 @@ import { formatBytes, getFileIcon, isImage, isPDF } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { RenameDialog } from "@/components/RenameDialog";
 import { ShareDialog } from "@/components/ShareDialog";
+import { getPluginsFor } from "@/plugins/plugin-registry";
 
 // --- Type Definitions ---
 export interface FileItem {
@@ -414,6 +415,8 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
 
 // --- Draggable and Droppable Row Components ---
 
+const fileActionPlugins = getPluginsFor('fileActions');
+
 function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow, onFileSelect, onPreview, onRename, onShare, onDelete, onDownload }: { file: FileItem, isSelectedForBulk: boolean, isSelectedForProperties: boolean, onSelectRow: (key: string, checked: boolean) => void, onFileSelect: (file: FileItem | null) => void, onPreview: (file: FileItem) => void, onRename: () => void, onShare: () => void, onDelete: () => void, onDownload: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: file.key,
@@ -446,6 +449,9 @@ function FileRow({ file, isSelectedForBulk, isSelectedForProperties, onSelectRow
             <DropdownMenuItem onClick={onRename}><Pencil className="mr-2 h-4 w-4" /><span>Rename</span></DropdownMenuItem>
             <DropdownMenuItem onClick={onShare}><Share2 className="mr-2 h-4 w-4" /><span>Share</span></DropdownMenuItem>
             <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" /><span>Delete</span></DropdownMenuItem>
+            {fileActionPlugins.map((PluginComponent, index) => (
+              <PluginComponent key={index} file={file} />
+            ))}
             <DropdownMenuItem onClick={onDownload}><Download className="mr-2 h-4 w-4" /><span>Download</span></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
