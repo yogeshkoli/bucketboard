@@ -4,6 +4,9 @@ import "./globals.css";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from "@/components/ui/sonner";
 
+// Load plugins
+import '@/plugins';
+
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
