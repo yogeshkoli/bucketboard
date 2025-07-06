@@ -9,6 +9,8 @@ import '@/plugins';
 
 const inter = Inter({ subsets: ['latin'] });
 
+import { AuthProvider } from '@/contexts/AuthContext';
+
 export const metadata: Metadata = {
   title: 'BucketBoard',
   description: 'A modern web application for managing AWS S3 buckets.',
@@ -28,8 +30,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <AuthProvider>
+            {children}
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

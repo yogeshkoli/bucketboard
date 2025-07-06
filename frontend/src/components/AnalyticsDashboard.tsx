@@ -28,7 +28,7 @@ export function AnalyticsDashboard() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/analytics`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/analytics`, { credentials: 'include' });
         if (!res.ok) {
           throw new Error('Failed to fetch analytics data.');
         }
