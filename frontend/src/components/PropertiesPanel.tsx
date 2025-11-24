@@ -24,7 +24,7 @@ export function PropertiesPanel({ file, onClose, onActionSuccess }: PropertiesPa
       const fetchTags = async () => {
         setIsLoading(true);
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/files/metadata?key=${encodeURIComponent(file.key)}`);
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/files/metadata?key=${encodeURIComponent(file.key)}`, { credentials: 'include' });
           if (!res.ok) throw new Error('Failed to fetch tags.');
           const data = await res.json();
           setTags(data || []);
@@ -66,6 +66,7 @@ export function PropertiesPanel({ file, onClose, onActionSuccess }: PropertiesPa
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: file.key, tags }),
+          credentials: 'include',
         }
       );
       if (!res.ok) throw new Error('Failed to save changes.');

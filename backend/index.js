@@ -5,6 +5,14 @@ import path from 'path';
 import archiver from 'archiver';
 import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, DeleteObjectsCommand, GetObjectTaggingCommand, PutObjectTaggingCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import passport from 'passport';
+import GoogleStrategy from 'passport-google-oauth20';
+import GitHubStrategy from 'passport-github2';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
+
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 // --- Environment Variable Setup ---
 // Because the .env file is in the root folder, one level above /backend,
@@ -34,8 +42,128 @@ const s3Client = new S3Client({
 const app = express();
 const port = process.env.PORT || 5002;
 // --- Middleware ---
-app.use(cors({ origin: 'http://localhost:3002' })); // Allow frontend to connect
+app.use(cors({ origin: 'http://localhost:3002', credentials: true })); // Allow frontend to connect
 app.use(express.json());
+
+// --- Authentication Setup ---
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'supersecret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  },
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL
+  },
+  async function(accessToken, refreshToken, profile, done) {
+    try {
+      const user = await prisma.user.upsert({
+        where: { email: profile.emails[0].value },
+        update: { providerId: profile.id, name: profile.displayName },
+        create: {
+          email: profile.emails[0].value,
+          name: profile.displayName,
+          provider: 'google',
+          providerId: profile.id,
+        }
+      });
+      return done(null, user);
+    } catch (error) {
+      return done(error, null);
+    }
+  }
+));
+
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: process.env.GITHUB_CALLBACK_URL
+  },
+  async function(accessToken, refreshToken, profile, done) {
+    try {
+      const email = profile.emails && profile.emails[0] && profile.emails[0].value;
+      if (!email) {
+        return done(new Error('GitHub account needs a public email address.'), null);
+      }
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: { providerId: profile.id, name: profile.displayName },
+        create: {
+          email,
+          name: profile.displayName,
+          provider: 'github',
+          providerId: profile.id,
+        }
+      });
+      return done(null, user);
+    } catch (error) {
+      return done(error, null);
+    }
+  }
+));
+
+// --- Auth Routes ---
+app.get('/api/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/api/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:3002');
+  });
+
+app.get('/api/auth/github', passport.authenticate('github', { scope: [ 'user:email' ] }));
+
+app.get('/api/auth/github/callback',
+  passport.authenticate('github', { failureRedirect: '/' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:3002');
+  });
+
+app.get('/api/auth/logout', (req, res, next) => {
+  req.logout(function(err) {
+    if (err) { return next(err); }
+    res.redirect('/');
+  });
+});
+
+// --- Middleware to check for authentication ---
+const ensureAuthenticated = (req, res, next) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Unauthorized' });
+};
+
+app.get('/api/auth/me', ensureAuthenticated, (req, res) => {
+  res.json(req.user);
+});
 
 // --- API Routes ---
 app.get('/', (req, res) => {
@@ -43,7 +171,7 @@ app.get('/', (req, res) => {
 });
 
 // API Endpoint to list files from the S3 bucket
-app.get('/api/files', async (req, res) => {
+app.get('/api/files', ensureAuthenticated, async (req, res) => {
   const prefix = req.query.prefix || '';
 
   const command = new ListObjectsV2Command({
@@ -80,7 +208,7 @@ app.get('/api/files', async (req, res) => {
 });
 
 // API Endpoint to generate a pre-signed URL for uploading a file
-app.post('/api/upload/presigned-url', async (req, res) => {
+app.post('/api/upload/presigned-url', ensureAuthenticated, async (req, res) => {
   const { fileName, fileType, prefix } = req.body;
 
   if (!fileName || !fileType) {
@@ -106,7 +234,7 @@ app.post('/api/upload/presigned-url', async (req, res) => {
 });
 
 // API Endpoint to create a new folder (empty object with a trailing slash)
-app.post('/api/folders', async (req, res) => {
+app.post('/api/folders', ensureAuthenticated, async (req, res) => {
   const { folderName, prefix } = req.body;
 
   if (!folderName) {
@@ -134,7 +262,7 @@ app.post('/api/folders', async (req, res) => {
 });
 
 // API Endpoint to delete a file
-app.delete('/api/files', async (req, res) => {
+app.delete('/api/files', ensureAuthenticated, async (req, res) => {
   const { key } = req.body;
 
   if (!key) {
@@ -156,7 +284,7 @@ app.delete('/api/files', async (req, res) => {
 });
 
 // API Endpoint for bulk file deletion
-app.delete('/api/files/bulk', async (req, res) => {
+app.delete('/api/files/bulk', ensureAuthenticated, async (req, res) => {
   const { keys } = req.body;
 
   if (!keys || !Array.isArray(keys) || keys.length === 0) {
@@ -187,7 +315,7 @@ app.delete('/api/files/bulk', async (req, res) => {
 });
 
 // API Endpoint to rename a file or folder
-app.post('/api/rename', async (req, res) => {
+app.post('/api/rename', ensureAuthenticated, async (req, res) => {
   const { oldKey, newKey, isFolder } = req.body;
 
   if (!oldKey || !newKey) {
@@ -252,7 +380,7 @@ app.post('/api/rename', async (req, res) => {
 });
 
 // API Endpoint to generate a pre-signed URL for viewing/downloading a file
-app.post('/api/files/presigned-url', async (req, res) => {
+app.post('/api/files/presigned-url', ensureAuthenticated, async (req, res) => {
   const { key, download } = req.body;
 
   if (!key) {
@@ -276,7 +404,7 @@ app.post('/api/files/presigned-url', async (req, res) => {
 });
 
 // API Endpoint to generate a pre-signed URL for sharing
-app.post('/api/share/presigned-url', async (req, res) => {
+app.post('/api/share/presigned-url', ensureAuthenticated, async (req, res) => {
   const { key, expiresIn } = req.body; // expiresIn in seconds
 
   if (!key || !expiresIn) {
@@ -298,7 +426,7 @@ app.post('/api/share/presigned-url', async (req, res) => {
 });
 
 // API Endpoint to download a folder as a zip archive
-app.post('/api/download/folder', async (req, res) => {
+app.post('/api/download/folder', ensureAuthenticated, async (req, res) => {
   const { prefix } = req.body;
   if (!prefix) {
     return res.status(400).json({ error: 'Folder prefix is required.' });
@@ -340,7 +468,7 @@ app.post('/api/download/folder', async (req, res) => {
 });
 
 // API Endpoint for Storage Analytics
-app.get('/api/analytics', async (req, res) => {
+app.get('/api/analytics', ensureAuthenticated, async (req, res) => {
   const bucketName = process.env.AWS_BUCKET_NAME;
   let continuationToken;
   let allObjects = [];
@@ -417,7 +545,7 @@ app.get('/api/analytics', async (req, res) => {
   }
 });
 
-app.get('/api/files/metadata', async (req, res) => {
+app.get('/api/files/metadata', ensureAuthenticated, async (req, res) => {
   const { key } = req.query;
 
   if (!key) {
@@ -441,7 +569,7 @@ app.get('/api/files/metadata', async (req, res) => {
 });
 
 // API Endpoint to update file metadata (tags)
-app.post('/api/files/metadata', async (req, res) => {
+app.post('/api/files/metadata', ensureAuthenticated, async (req, res) => {
   const { key, tags } = req.body;
 
   if (!key || !tags) {

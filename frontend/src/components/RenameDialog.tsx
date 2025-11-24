@@ -48,6 +48,7 @@ export function RenameDialog({ item, isOpen, onOpenChange, onSuccess, currentPre
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ oldKey, newKey, isFolder }),
+        credentials: 'include',
       });
 
       if (!res.ok) {

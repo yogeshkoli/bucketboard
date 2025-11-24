@@ -63,6 +63,7 @@ export function UploadDialog({ currentPrefix, onUploadSuccess }: UploadDialogPro
                         fileType: uploadableFile.file.type,
                         prefix: currentPrefix,
                     }),
+                    credentials: 'include',
                 });
 
                 if (!res.ok) throw new Error('Failed to get pre-signed URL.');

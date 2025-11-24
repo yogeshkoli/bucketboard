@@ -47,6 +47,7 @@ export function ShareDialog({ file, isOpen, onOpenChange }: ShareDialogProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: file.key, expiresIn: expiry }),
+        credentials: 'include',
       });
 
       if (!res.ok) {

@@ -18,11 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Terminal, Search, BarChart2 } from 'lucide-react';
+import { Terminal, Search, BarChart2, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 import { PropertiesPanel } from '@/components/PropertiesPanel';
+
+import { useAuth } from '@/contexts/AuthContext';
 
 const FileListSkeleton = () => (
   <div className="p-4 space-y-4">
@@ -87,6 +89,7 @@ const PageSkeleton = () => (
 );
 
 function BucketBrowser() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -98,6 +101,12 @@ function BucketBrowser() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   // This effect syncs the prefix state to the URL query parameters.
   useEffect(() => {
@@ -120,7 +129,7 @@ function BucketBrowser() {
       if (prefix) {
         url.searchParams.append('prefix', prefix);
       }
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { credentials: 'include' });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null); // Gracefully handle non-JSON responses
@@ -197,6 +206,24 @@ function BucketBrowser() {
     setSelectedFile(null);
   };
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/logout`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        router.push('/login');
+      } else {
+        console.error('Logout failed:', res.statusText);
+        // Optionally, show an error toast
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Optionally, show an error toast
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 h-screen flex flex-col">
       <div className="flex flex-1 overflow-hidden">
@@ -216,6 +243,9 @@ function BucketBrowser() {
               <CreateFolderDialog currentPrefix={prefix} onSuccess={fetchFiles} />
               <UploadDialog currentPrefix={prefix} onUploadSuccess={fetchFiles} />
               <ThemeToggle />
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <div className="p-4 border-b">

@@ -37,6 +37,7 @@ export function CreateFolderDialog({ currentPrefix, onSuccess }: CreateFolderDia
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folderName, prefix: currentPrefix }),
+                credentials: 'include',
             });
 
             if (!res.ok) {

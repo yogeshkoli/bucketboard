@@ -102,6 +102,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: fileToDelete.key }),
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -125,6 +126,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: Array.from(selectedKeys) }),
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -167,6 +169,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: file.key }),
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to get preview URL.');
       const { url } = await res.json();
@@ -186,6 +189,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: file.key, download: true }),
+        credentials: 'include',
       });
 
       if (!res.ok) throw new Error('Failed to get download URL.');
@@ -206,6 +210,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prefix: folder.prefix }),
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -254,6 +259,7 @@ export function FileList({ items, onFolderClick, onNavigateUp, currentPrefix, on
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ oldKey, newKey, isFolder: false }),
+          credentials: 'include',
         });
 
         if (!res.ok) {
