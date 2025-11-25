@@ -68,14 +68,24 @@ AWS_REGION=your-region
 AWS_BUCKET_NAME=your-bucket
 ```
 
-### 3. Install Dependencies (if not using Docker)
+### 3. Create `.env.local` file 
+Create `.env.local` in `./frontend/.env.local` 
+```
+NEXT_PUBLIC_API_BASE_URL=your-api-url-to-the-backend
+
+NEXT_PUBLIC_AWS_BUCKET_NAME=aws-s3-bucket-name
+AWS_BUCKET_NAME=s3-bucket-name
+AWS_REGION=aws-region
+```
+
+### 4. Install Dependencies (if not using Docker)
 
 ```bash
 cd backend && pnpm install
 cd ../frontend && pnpm install
 ```
 
-### 4. Run Locally with Docker
+### 5. Run Locally with Docker
 
 ```bash
 docker-compose up --build
